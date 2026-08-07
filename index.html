@@ -1385,16 +1385,16 @@ reconcileFromIDB();
     }
   }
 
-  function renderQuickAddFullScreen(param){
+ function renderQuickAddFullScreen(param){
     const screen=document.getElementById('screen');
     if(!screen) return;
     document.getElementById('nav').style.display='none';
     document.getElementById('fab').style.display='none';
-    screen.innerHTML=`<div class="page" style="display:flex;flex-direction:column;min-height:100%;padding:20px 20px 0">
+    screen.innerHTML=`<div class="page" style="padding:20px 20px 90px">
       <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:18px">⚡ Novo gasto</div>
-      <div style="flex:1" id="qaScroll">${buildQuickAddFields(param)}</div>
-      <div style="padding:16px 0 24px;position:sticky;bottom:0;background:var(--bg)"><button class="btn btn-p" onclick="qaSaveNow()">Salvar</button></div>
-    </div>`;
+      ${buildQuickAddFields(param)}
+    </div>
+    <div style="position:fixed;left:0;right:0;bottom:0;padding:12px 20px calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--border)"><button class="btn btn-p" onclick="qaSaveNow()">Salvar</button></div>`;
     attachAmtMask();
   }
 
