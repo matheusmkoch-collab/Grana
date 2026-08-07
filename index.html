@@ -1243,5 +1243,62 @@ reconcileFromIDB();
   };
 })();
 </script>
+<script>
+// ═══════════════ EDITAR / APAGAR FORMA DE PAGAMENTO ═══════════════
+(function(){
+  const _oldRenderMaisCard=window.renderMais;
+  window.renderMais=function(){
+    let html=_oldRenderMaisCard();
+    if(S.cards.length){
+      let i=0;
+      html=html.replace(/<div class="chip-r">/g,()=>{
+        const c=S.cards[i++];
+        return c?`<div class="chip-r" style="cursor:pointer" onclick="openModal('editCard','${c.id}')">`:'<div class="chip-r">';
+      });
+    }
+    return html;
+  };
+
+  const _oldOpenModalCard=window.openModal;
+  window.openModal=function(type,param){
+    _oldOpenModalCard(type,param);
+    if(type==='editCard'){
+      const c=S.cards.find(x=>x.id===param);
+      if(!c) return;
+      const body=document.querySelector('#modal .mo-b');
+      if(!body) return;
+      const types=['Cartão','Boleto','Transferência','Pix','Dinheiro','Outro'];
+      const nTx=S.transactions.filter(t=>t.cardId===c.id).length;
+      body.innerHTML=`<div class="mo-h"></div><div class="mo-t">Editar forma de pagamento</div>
+        <div class="ir"><label class="il">Nome</label><input class="inp" id="ecName" value="${c.name.replace(/"/g,'&quot;')}"/></div>
+        <div class="ir"><label class="il">Tipo</label><div class="csl-r" id="ecTypeR">${types.map(t=>`<div class="csl ${t===c.type?'sel':''}" data-type="${t}" onclick="document.querySelectorAll('#ecTypeR .csl').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')">${t}</div>`).join('')}</div></div>
+        <div class="ir"><label class="il">Banco (opcional)</label><input class="inp" id="ecBank" value="${(c.bank||'').replace(/"/g,'&quot;')}"/></div>
+        <div class="ir"><label class="il">Cor</label><div class="sw-r" id="ecSw">${CC.map(cl=>`<div class="sw ${c.color===cl?'sel':''}" style="background:${cl}" onclick="this.parentNode.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));this.classList.add('sel')" data-color="${cl}"></div>`).join('')}</div></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-s" style="width:auto;padding:11px 18px" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveCardEdit('${c.id}')">Salvar</button></div>
+        <button class="btn btn-d" onclick="delCard('${c.id}')">Apagar${nTx>0?` (usado em ${nTx} gasto${nTx>1?'s':''})`:''}</button>`;
+    }
+  };
+
+  window.saveCardEdit=function(id){
+    const name=document.getElementById('ecName')?.value.trim();
+    if(!name) return;
+    const type=document.querySelector('#ecTypeR .csl.sel')?.dataset.type||'Cartão';
+    const bank=document.getElementById('ecBank')?.value.trim()||'';
+    const color=document.querySelector('#ecSw .sw.sel')?.dataset.color;
+    S.cards=S.cards.map(c=>c.id===id?{...c,name,type,bank,color:color||c.color}:c);
+    save();closeModal();render();
+  };
+  window.delCard=function(id){
+    const c=S.cards.find(x=>x.id===id);
+    if(!c) return;
+    const n=S.transactions.filter(t=>t.cardId===id).length;
+    const msg=n>0?`Apagar "${c.name}"? ${n} gasto${n>1?'s ficarão':' ficará'} sem forma de pagamento vinculada.`:`Apagar "${c.name}"?`;
+    if(!confirm(msg)) return;
+    S.cards=S.cards.filter(x=>x.id!==id);
+    S.transactions=S.transactions.map(t=>t.cardId===id?{...t,cardId:null}:t);
+    save();closeModal();render();
+  };
+})();
+</script>
 </body>
 </html>
