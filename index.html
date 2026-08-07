@@ -1490,7 +1490,7 @@ reconcileFromIDB();
   function markHidden(){ hiddenAt=Date.now(); }
   function maybeReload(){
     if(hiddenAt && (Date.now()-hiddenAt) > 60000){
-      location.reload();
+      location.href=location.pathname+'?v='+Date.now();
       return;
     }
     load();
@@ -1534,10 +1534,8 @@ reconcileFromIDB();
     const btn=document.getElementById('syncBarBtn');
     if(btn) btn.style.transition='transform .4s';
     if(btn) btn.style.transform='rotate(360deg)';
-    load();
-    if(S.familySession && typeof syncFamilyNow==='function'){ await syncFamilyNow(); } else { render(); }
     markSynced();
-    if(btn) setTimeout(()=>{btn.style.transition='';btn.style.transform='';},400);
+    location.href=location.pathname+'?v='+Date.now();
   }
   document.getElementById('syncBarBtn').addEventListener('click',doRefresh);
   markSynced();
