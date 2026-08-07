@@ -1157,5 +1157,39 @@ reconcileFromIDB();
   setTimeout(()=>{if(S.familySession)syncNow().then(r=>{if(r.ok)render();});},800);
 })();
 </script>
+<script>
+// ═══════════════ EDITAR GASTO COMPLETO (valor, descrição, cartão, categoria) ═══════════════
+(function(){
+  const _oldOpenModalEdit=window.openModal;
+  window.openModal=function(type,param){
+    _oldOpenModalEdit(type,param);
+    if(type==='editTx'){
+      const tx=S.transactions.find(t=>t.id===param);
+      if(!tx) return;
+      const body=document.querySelector('#modal .mo-b');
+      if(!body) return;
+      body.innerHTML=`<div class="mo-h"></div><div class="mo-t">Editar transação</div>
+        <div class="ir"><label class="il">Descrição</label><input class="inp" id="etDesc" value="${tx.name.replace(/"/g,'&quot;')}"/></div>
+        <div class="ir"><label class="il">Valor</label><input class="inp" id="etAmt" type="number" step="0.01" inputmode="decimal" value="${tx.amount}"/></div>
+        <div class="ir"><label class="il">Categoria</label><select class="inp" id="etCat" style="appearance:none;-webkit-appearance:none">${S.categories.map(ct=>`<option value="${ct.id}" ${tx.cat===ct.id?'selected':''}>${ct.emoji} ${ct.name}</option>`).join('')}</select></div>
+        <div class="ir"><label class="il">Como foi pago</label><select class="inp" id="etCard" style="appearance:none;-webkit-appearance:none">${S.cards.map(c=>`<option value="${c.id}" ${tx.cardId===c.id?'selected':''}>${c.name}</option>`).join('')}</select></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn btn-s" style="width:auto;padding:11px 18px" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveTxFull('${tx.id}')">Salvar</button></div>
+        <button class="btn btn-d" onclick="delTx('${tx.id}')">Apagar este gasto</button>`;
+    }
+  };
+  window.saveTxFull=function(id){
+    const tx=S.transactions.find(t=>t.id===id);
+    if(!tx) return;
+    const newName=document.getElementById('etDesc')?.value.trim()||tx.name;
+    const amtVal=parseFloat((document.getElementById('etAmt')?.value||'').replace(',','.'));
+    const newAmt=(!isNaN(amtVal)&&amtVal>0)?amtVal:tx.amount;
+    const newCat=document.getElementById('etCat')?.value||tx.cat;
+    const newCardId=document.getElementById('etCard')?.value||tx.cardId;
+    S.transactions=S.transactions.map(t=>t.id===id?{...t,name:newName,amount:newAmt,cat:newCat,cardId:newCardId}:t);
+    if(newCat!==tx.cat) learnRuleAndFix(newName,newCat);
+    save();closeModal();render();
+  };
+})();
+</script>
 </body>
 </html>
