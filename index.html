@@ -1473,5 +1473,15 @@ reconcileFromIDB();
   });
 })();
 </script>
+<script>
+// ═══════════════ BLOQUEIA RENDER DE FUNDO DURANTE O FLUXO DE GASTO RÁPIDO ═══════════════
+(function(){
+  const _origRender=window.render;
+  window.render=function(...args){
+    if(window.__qaFromAutomation) return;
+    return _origRender.apply(this,args);
+  };
+})();
+</script>
 </body>
 </html>
