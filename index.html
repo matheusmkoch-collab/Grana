@@ -1340,5 +1340,96 @@ reconcileFromIDB();
   };
 })();
 </script>
+<script>
+// ═══════════════ NOVO GASTO: máscara, botão fixo, tela de confirmação ═══════════════
+(function(){
+  function centsToStr(cents){
+    cents=Math.max(0,Math.round(cents));
+    const s=(cents/100).toFixed(2);
+    const [i,d]=s.split('.');
+    const ig=i.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    return ig+','+d;
+  }
+  function amtToCents(amt){
+    const n=parseFloat(String(amt||'0').replace(',','.'))||0;
+    return Math.round(n*100);
+  }
+  function isFromAutomation(){
+    return new URLSearchParams(location.search).get('add')==='1';
+  }
+
+  function buildQuickAddHtml(param){
+    const amt=param?.amt||'', desc=param?.desc||'', cardId=param?.cardId||S.cards[0]?.id;
+    const cents=amtToCents(amt);
+    const cur=(CUR[S.currency]||CUR.BRL).symbol;
+    const suggested=desc?cat(desc):'outros';
+    window.__qaSelectedCat=S.categories.some(c=>c.id===suggested)?suggested:'outros';
+    const catsHtml=S.categories.map(c=>`<div class="qa-cat ${c.id===window.__qaSelectedCat?'sug':''}" data-cat="${c.id}" onclick="document.querySelectorAll('#qaGrid2 .qa-cat').forEach(x=>x.classList.remove('sug'));this.classList.add('sug');window.__qaSelectedCat='${c.id}'"><div class="qa-cat-ico">${c.emoji}</div><div class="qa-cat-n">${c.name}</div></div>`).join('');
+    return `<div class="mo-h"></div><div class="mo-t">⚡ Novo gasto</div>
+      <div style="max-height:50vh;overflow-y:auto;padding-right:2px" id="qaScroll">
+        <div class="qa-amt" style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin-bottom:4px">
+          <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--muted2)">${cur}</span>
+          <input class="inp" id="qaAmtView" type="text" inputmode="numeric" value="${cents>0?centsToStr(cents):''}" placeholder="0,00" style="border:none;background:none;padding:6px 0;text-align:center;font-family:'Syne',sans-serif;font-size:32px;font-weight:800;width:auto;max-width:220px"/>
+        </div>
+        <div class="ir"><label class="il">Descrição</label><input class="inp" id="qaDesc" value="${desc.replace(/"/g,'&quot;')}" placeholder="ex: iFood, Uber, Farmácia..."/></div>
+        <div class="ir"><label class="il">Como foi pago</label><div class="csl-r" id="qaCardR">${S.cards.map(cd=>`<div class="csl ${cd.id===cardId?'sel':''}" data-card="${cd.id}" onclick="document.querySelectorAll('#qaCardR .csl').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')"><div class="csl-d" style="background:${cd.color}"></div>${cd.name}</div>`).join('')}<div class="csl" onclick="openModal('addCard')">+ Novo</div></div></div>
+        <label class="il" style="margin-top:2px;display:block">Categoria</label>
+        <div class="qa-grid" id="qaGrid2">${catsHtml}</div>
+      </div>
+      <button class="btn btn-p" style="margin-top:12px" onclick="qaSaveNow()">Salvar</button>`;
+  }
+
+  const _oldOpenModalQA=window.openModal;
+  window.openModal=function(type,param){
+    if(type==='quickAdd'){
+      const ov=document.createElement('div');ov.className='mo';ov.id='modal';ov.onclick=e=>{if(e.target===ov)closeModal();};
+      ov.innerHTML=`<div class="mo-b">${buildQuickAddHtml(param)}</div>`;
+      document.body.appendChild(ov);
+      const view=document.getElementById('qaAmtView');
+      if(view){
+        view.addEventListener('input',()=>{
+          const digits=view.value.replace(/\D/g,'');
+          const c=digits?parseInt(digits,10):0;
+          view.value=c>0?centsToStr(c):'';
+        });
+        setTimeout(()=>view.focus(),120);
+      }
+      return;
+    }
+    _oldOpenModalQA(type,param);
+  };
+
+  window.qaSaveNow=function(){
+    const view=document.getElementById('qaAmtView');
+    const amt=amtToCents(view?.value||'0')/100;
+    const desc=document.getElementById('qaDesc')?.value.trim()||'';
+    const cardId=document.querySelector('#qaCardR .csl.sel')?.dataset.card||S.cards[0]?.id;
+    const catId=window.__qaSelectedCat;
+    if(amt<=0){alert('Coloca um valor.');return;}
+    if(!catId){alert('Escolhe uma categoria.');return;}
+    logExpense(amt,desc,cardId,catId);
+    closeModal();
+    if(isFromAutomation()){
+      showSavedScreen(amt,desc,catId);
+    } else {
+      render();
+    }
+  };
+
+  function showSavedScreen(amt,desc,catId){
+    const c=gCat(catId);
+    const screen=document.getElementById('screen');
+    if(!screen) return;
+    screen.innerHTML=`<div class="page" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;padding:24px">
+      <div style="font-size:52px;margin-bottom:14px">✅</div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">Gasto salvo</div>
+      <div style="font-size:14px;color:var(--muted2);margin-bottom:22px">${c.emoji} ${c.name} · ${fmt(amt)}${desc?' · '+desc:''}</div>
+      <a href="${granaBaseUrl()}" class="btn btn-p" style="text-decoration:none;max-width:320px">Visualizar contas</a>
+    </div>`;
+    document.getElementById('nav').style.display='none';
+    document.getElementById('fab').style.display='none';
+  }
+})();
+</script>
 </body>
 </html>
