@@ -1504,36 +1504,81 @@ reconcileFromIDB();
 })();
 </script>
 <script>
-// ═══════════════ PUXAR PRA ATUALIZAR ═══════════════
+<script>
+// ═══════════════ BARRA DE ATUALIZAÇÃO (botão + puxar pra atualizar) ═══════════════
 (function(){
-  let startY=0, pulling=false;
   const screen=document.getElementById('screen');
   if(!screen) return;
+
+  function lastSyncText(){
+    const t=parseInt(localStorage.getItem('grana_last_sync')||'0',10);
+    if(!t) return 'nunca atualizado';
+    const diff=Math.floor((Date.now()-t)/1000);
+    if(diff<10) return 'atualizado agora';
+    if(diff<60) return 'atualizado há '+diff+'s';
+    if(diff<3600) return 'atualizado há '+Math.floor(diff/60)+'min';
+    return 'atualizado há '+Math.floor(diff/3600)+'h';
+  }
+  function markSynced(){ localStorage.setItem('grana_last_sync', String(Date.now())); updateBarText(); }
+  function updateBarText(){ const el=document.getElementById('syncBarTxt'); if(el) el.textContent=lastSyncText(); }
+
+  const bar=document.createElement('div');
+  bar.id='syncBar';
+  bar.style.cssText='position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:120;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 0;background:var(--s1);border-bottom:1px solid var(--border);font-family:"DM Mono",monospace;font-size:10px;color:var(--muted2)';
+  bar.innerHTML='<span id="syncBarTxt">'+lastSyncText()+'</span><button id="syncBarBtn" style="background:none;border:none;color:var(--accent);font-size:13px;padding:0 4px;cursor:pointer;-webkit-appearance:none">&#8635;</button>';
+  document.body.appendChild(bar);
+  screen.style.paddingTop='calc(env(safe-area-inset-top,0px) + 30px)';
+
+  setInterval(updateBarText,10000);
+
+  async function doRefresh(){
+    const btn=document.getElementById('syncBarBtn');
+    if(btn) btn.style.transition='transform .4s';
+    if(btn) btn.style.transform='rotate(360deg)';
+    load();
+    if(S.familySession && typeof syncFamilyNow==='function'){ await syncFamilyNow(); } else { render(); }
+    markSynced();
+    if(btn) setTimeout(()=>{btn.style.transition='';btn.style.transform='';},400);
+  }
+  document.getElementById('syncBarBtn').addEventListener('click',doRefresh);
+  markSynced();
+
+  let startY=0, pulling=false, dragging=false;
   const indicator=document.createElement('div');
-  indicator.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);opacity:0;transition:opacity .15s;z-index:150;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:11px;color:var(--muted2);font-family:'DM Mono',monospace;pointer-events:none';
+  indicator.id='pullIndicator';
+  indicator.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 34px);left:50%;transform:translateX(-50%) scale(.8);opacity:0;transition:opacity .15s;z-index:150;background:var(--s2);border:1px solid var(--border2);border-radius:20px;padding:7px 16px;font-size:11px;color:var(--accent);font-family:"DM Mono",monospace;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.15)';
   indicator.textContent='↓ puxe para atualizar';
   document.body.appendChild(indicator);
 
   screen.addEventListener('touchstart',(e)=>{
     pulling = screen.scrollTop<=0;
+    dragging=false;
     if(pulling) startY=e.touches[0].clientY;
   },{passive:true});
   screen.addEventListener('touchmove',(e)=>{
     if(!pulling) return;
     const dy=e.touches[0].clientY-startY;
-    if(dy>10){
-      indicator.style.opacity=Math.min(dy/60,1);
+    if(dy>4){
+      dragging=true;
+      e.preventDefault();
+      const pull=Math.min(dy,100);
+      indicator.style.opacity=Math.min(pull/50,1);
+      indicator.style.transform='translateX(-50%) scale('+(.8+Math.min(pull/70,1)*.2)+')';
       indicator.textContent = dy>70 ? '↑ solte para atualizar' : '↓ puxe para atualizar';
+      screen.style.transform='translateY('+(pull*0.4)+'px)';
     }
-  },{passive:true});
+  },{passive:false});
   screen.addEventListener('touchend',(e)=>{
     if(!pulling) return;
-    const dy=e.changedTouches[0].clientY-startY;
+    const dy=(e.changedTouches[0].clientY-startY);
     pulling=false;
-    if(dy>70){
+    screen.style.transition='transform .2s';
+    screen.style.transform='';
+    setTimeout(()=>{screen.style.transition='';},200);
+    if(dragging && dy>70){
       indicator.textContent='Atualizando...';
       indicator.style.opacity=1;
-      setTimeout(()=>location.reload(),150);
+      doRefresh().then(()=>{ indicator.style.opacity=0; });
     }else{
       indicator.style.opacity=0;
     }
