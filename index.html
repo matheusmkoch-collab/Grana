@@ -1191,5 +1191,57 @@ reconcileFromIDB();
   };
 })();
 </script>
+<script>
+// ═══════════════ MÁSCARA DE VALOR (símbolo da moeda + vírgula/ponto ao digitar) ═══════════════
+(function(){
+  function centsToStr(cents){
+    cents=Math.max(0,Math.round(cents));
+    const s=(cents/100).toFixed(2);
+    const [i,d]=s.split('.');
+    const ig=i.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    return ig+','+d;
+  }
+  function amtToCents(amt){
+    const n=parseFloat(String(amt||'0').replace(',','.'))||0;
+    return Math.round(n*100);
+  }
+  function attachMoneyMask(realId){
+    const real=document.getElementById(realId);
+    if(!real||real.dataset.masked) return;
+    real.dataset.masked='1';
+    real.style.display='none';
+    const cur=(CUR[S.currency]||CUR.BRL).symbol;
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;align-items:baseline;justify-content:center;gap:6px';
+    const sym=document.createElement('span');
+    sym.textContent=cur;
+    sym.style.cssText="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--muted2)";
+    const view=document.createElement('input');
+    view.type='text';
+    view.inputMode='numeric';
+    view.id=realId+'View';
+    view.style.cssText="text-align:center;font-family:'Syne',sans-serif;font-size:32px;font-weight:800;border:none;background:none;width:100%;outline:none";
+    let cents=amtToCents(real.value);
+    view.value=cents>0?centsToStr(cents):'';
+    view.placeholder='0,00';
+    view.addEventListener('input',()=>{
+      const digits=view.value.replace(/\D/g,'');
+      cents=digits?parseInt(digits,10):0;
+      view.value=cents>0?centsToStr(cents):'';
+      real.value=(cents/100).toFixed(2);
+    });
+    real.parentNode.insertBefore(wrap,real);
+    wrap.appendChild(sym);
+    wrap.appendChild(view);
+    real.parentNode.insertBefore(real,wrap.nextSibling);
+  }
+  const _oldOpenModalMask=window.openModal;
+  window.openModal=function(type,param){
+    _oldOpenModalMask(type,param);
+    if(type==='quickAdd') setTimeout(()=>attachMoneyMask('qaAmt'),0);
+    if(type==='editTx') setTimeout(()=>attachMoneyMask('etAmt'),0);
+  };
+})();
+</script>
 </body>
 </html>
