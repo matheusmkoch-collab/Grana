@@ -1839,5 +1839,34 @@ reconcileFromIDB();
   translateAll();
 })();
 </script>
+  <script>
+// ═══════════════ APAGAR TODOS OS GASTOS (mantém conta) ═══════════════
+(function(){
+  window.clearAllTransactions=async function(){
+    const en=S.lang==='en';
+    const msg=en?'Delete ALL expenses (yours and your partner\'s)? This cannot be undone.':'Apagar TODOS os gastos (seus e da parceira)? Isso não pode ser desfeito.';
+    if(!confirm(msg)) return;
+    S.transactions=[];
+    save();
+    if(S.familySession && window.supabase){
+      try{
+        const URL='https://ltrnhzzopqnrrbrkqyhb.supabase.co';
+        const KEY='sb_publishable_PoLwWotDyxWkC1c6yqvx9A_1S9DOfMG';
+        const sbClear=window.supabase.createClient(URL,KEY);
+        await sbClear.from('transactions').delete().eq('session_code',S.familySession);
+      }catch(e){ console.error('Grana: falha ao limpar Supabase',e); }
+    }
+    render();
+    alert(en?'All expenses deleted.':'Todos os gastos foram apagados.');
+  };
+
+  const _oldRenderMaisClear=window.renderMais;
+  window.renderMais=function(){
+    let html=_oldRenderMaisClear();
+    const btn='<button class="btn btn-d" style="margin-bottom:9px" onclick="clearAllTransactions()">'+(S.lang==='en'?'Delete all expenses (keep account)':'Apagar todos os gastos (mantém conta)')+'</button>';
+    return html.replace('<button class="btn btn-d" onclick="if(confirm(', btn+'<button class="btn btn-d" onclick="if(confirm(');
+  };
+})();
+</script>
 </body>
 </html>
