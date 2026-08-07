@@ -1311,21 +1311,21 @@ reconcileFromIDB();
   if(!window.supabase){console.warn('Grana: supabase-js não carregou (nome família)');return;}
   const sb2=window.supabase.createClient(URL,KEY);
 
-  async function pullMemberNames(){
+  async function pullMemberNames(silent){
     if(!S.familySession) return;
     try{
       const {data,error}=await sb2.from('members').select('device_id,user_name').eq('session_code',S.familySession);
       if(error) throw error;
       S.familyMembers={};
       (data||[]).forEach(m=>{S.familyMembers[m.device_id]=m.user_name||'Parceiro(a)';});
-      render();
+      if(!silent) render();
     }catch(e){console.error('Grana: falha ao buscar nomes da família',e);}
   }
 
   const _oldSyncFamilyNow=window.syncFamilyNow;
   window.syncFamilyNow=async function(){
     const r=await _oldSyncFamilyNow.apply(this,arguments);
-    await pullMemberNames();
+    await pullMemberNames(true);
     return r;
   };
   setTimeout(()=>{if(S.familySession)pullMemberNames();},900);
