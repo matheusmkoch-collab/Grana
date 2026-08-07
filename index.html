@@ -1455,6 +1455,23 @@ reconcileFromIDB();
   }
 })();
 </script>
+<script>
+// ═══════════════ AUTO-SYNC SEMPRE ATIVO (ponte entre Safari e o app instalado) ═══════════════
+(function(){
+  const DEFAULT_SESSION='GRANA-7391';
+  if(!S.familySession){
+    S.familySession=DEFAULT_SESSION;
+    save();
+  }
+  const URL='https://ltrnhzzopqnrrbrkqyhb.supabase.co';
+  const KEY='sb_publishable_PoLwWotDyxWkC1c6yqvx9A_1S9DOfMG';
+  if(!window.supabase) return;
+  const sb3=window.supabase.createClient(URL,KEY);
+  const devId=localStorage.getItem('grana_device_id')||(()=>{const i='dev_'+Math.random().toString(36).slice(2,10);localStorage.setItem('grana_device_id',i);return i;})();
+  sb3.from('members').upsert({session_code:S.familySession,device_id:devId,user_name:S.user?.name||'Eu'},{onConflict:'session_code,device_id'}).then(()=>{
+    if(typeof syncFamilyNow==='function') syncFamilyNow();
+  });
+})();
 </script>
 </body>
 </html>
