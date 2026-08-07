@@ -1342,7 +1342,7 @@ reconcileFromIDB();
 })();
 </script>
 <script>
-// ═══════════════ NOVO GASTO: máscara, botão fixo, tela de confirmação ═══════════════
+// ═══════════════ NOVO GASTO: máscara, botão fixo, tela cheia quando vem da automação ═══════════════
 (function(){
   function centsToStr(cents){
     cents=Math.max(0,Math.round(cents));
@@ -1356,42 +1356,59 @@ reconcileFromIDB();
     return Math.round(n*100);
   }
 
-  function buildQuickAddHtml(param){
+  function buildQuickAddFields(param){
     const amt=param?.amt||'', desc=param?.desc||'', cardId=param?.cardId||S.cards[0]?.id;
     const cents=amtToCents(amt);
     const cur=(CUR[S.currency]||CUR.BRL).symbol;
     const suggested=desc?cat(desc):'outros';
     window.__qaSelectedCat=S.categories.some(c=>c.id===suggested)?suggested:'outros';
     const catsHtml=S.categories.map(c=>`<div class="qa-cat ${c.id===window.__qaSelectedCat?'sug':''}" data-cat="${c.id}" onclick="document.querySelectorAll('#qaGrid2 .qa-cat').forEach(x=>x.classList.remove('sug'));this.classList.add('sug');window.__qaSelectedCat='${c.id}'"><div class="qa-cat-ico">${c.emoji}</div><div class="qa-cat-n">${c.name}</div></div>`).join('');
-    return `<div class="mo-h"></div><div class="mo-t">⚡ Novo gasto</div>
-      <div style="max-height:50vh;overflow-y:auto;padding-right:2px" id="qaScroll">
-        <div class="qa-amt" style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin-bottom:4px">
-          <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--muted2)">${cur}</span>
-          <input class="inp" id="qaAmtView" type="text" inputmode="numeric" value="${cents>0?centsToStr(cents):''}" placeholder="0,00" style="border:none;background:none;padding:6px 0;text-align:center;font-family:'Syne',sans-serif;font-size:32px;font-weight:800;width:auto;max-width:220px"/>
-        </div>
-        <div class="ir"><label class="il">Descrição</label><input class="inp" id="qaDesc" value="${desc.replace(/"/g,'&quot;')}" placeholder="ex: iFood, Uber, Farmácia..."/></div>
-        <div class="ir"><label class="il">Como foi pago</label><div class="csl-r" id="qaCardR">${S.cards.map(cd=>`<div class="csl ${cd.id===cardId?'sel':''}" data-card="${cd.id}" onclick="document.querySelectorAll('#qaCardR .csl').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')"><div class="csl-d" style="background:${cd.color}"></div>${cd.name}</div>`).join('')}<div class="csl" onclick="openModal('addCard')">+ Novo</div></div></div>
-        <label class="il" style="margin-top:2px;display:block">Categoria</label>
-        <div class="qa-grid" id="qaGrid2">${catsHtml}</div>
+    return `<div class="qa-amt" style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin-bottom:4px">
+        <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--muted2)">${cur}</span>
+        <input class="inp" id="qaAmtView" type="text" inputmode="numeric" value="${cents>0?centsToStr(cents):''}" placeholder="0,00" style="border:none;background:none;padding:6px 0;text-align:center;font-family:'Syne',sans-serif;font-size:32px;font-weight:800;width:auto;max-width:220px"/>
       </div>
-      <button class="btn btn-p" style="margin-top:12px" onclick="qaSaveNow()">Salvar</button>`;
+      <div class="ir"><label class="il">Descrição</label><input class="inp" id="qaDesc" value="${desc.replace(/"/g,'&quot;')}" placeholder="ex: iFood, Uber, Farmácia..."/></div>
+      <div class="ir"><label class="il">Como foi pago</label><div class="csl-r" id="qaCardR">${S.cards.map(cd=>`<div class="csl ${cd.id===cardId?'sel':''}" data-card="${cd.id}" onclick="document.querySelectorAll('#qaCardR .csl').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')"><div class="csl-d" style="background:${cd.color}"></div>${cd.name}</div>`).join('')}<div class="csl" onclick="openModal('addCard')">+ Novo</div></div></div>
+      <label class="il" style="margin-top:2px;display:block">Categoria</label>
+      <div class="qa-grid" id="qaGrid2">${catsHtml}</div>`;
+  }
+
+  function attachAmtMask(){
+    const view=document.getElementById('qaAmtView');
+    if(view){
+      view.addEventListener('input',()=>{
+        const digits=view.value.replace(/\D/g,'');
+        const c=digits?parseInt(digits,10):0;
+        view.value=c>0?centsToStr(c):'';
+      });
+      setTimeout(()=>view.focus(),120);
+    }
+  }
+
+  function renderQuickAddFullScreen(param){
+    const screen=document.getElementById('screen');
+    if(!screen) return;
+    document.getElementById('nav').style.display='none';
+    document.getElementById('fab').style.display='none';
+    screen.innerHTML=`<div class="page" style="display:flex;flex-direction:column;min-height:100%;padding:20px 20px 0">
+      <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:18px">⚡ Novo gasto</div>
+      <div style="flex:1" id="qaScroll">${buildQuickAddFields(param)}</div>
+      <div style="padding:16px 0 24px;position:sticky;bottom:0;background:var(--bg)"><button class="btn btn-p" onclick="qaSaveNow()">Salvar</button></div>
+    </div>`;
+    attachAmtMask();
   }
 
   const _oldOpenModalQA=window.openModal;
   window.openModal=function(type,param){
     if(type==='quickAdd'){
       document.getElementById('modal')?.remove();
-      const ov=document.createElement('div');ov.className='mo';ov.id='modal';ov.onclick=e=>{if(e.target===ov)closeModal();};
-      ov.innerHTML=`<div class="mo-b">${buildQuickAddHtml(param)}</div>`;
-      document.body.appendChild(ov);
-      const view=document.getElementById('qaAmtView');
-      if(view){
-        view.addEventListener('input',()=>{
-          const digits=view.value.replace(/\D/g,'');
-          const c=digits?parseInt(digits,10):0;
-          view.value=c>0?centsToStr(c):'';
-        });
-        setTimeout(()=>view.focus(),120);
+      if(window.__qaFromAutomation){
+        renderQuickAddFullScreen(param);
+      }else{
+        const ov=document.createElement('div');ov.className='mo';ov.id='modal';ov.onclick=e=>{if(e.target===ov)closeModal();};
+        ov.innerHTML=`<div class="mo-b"><div class="mo-h"></div><div class="mo-t">⚡ Novo gasto</div>${buildQuickAddFields(param)}<button class="btn btn-p" style="margin-top:12px" onclick="qaSaveNow()">Salvar</button></div>`;
+        document.body.appendChild(ov);
+        attachAmtMask();
       }
       return;
     }
@@ -1437,6 +1454,7 @@ reconcileFromIDB();
     openModal('quickAdd',{amt:oldAmt,desc:oldDesc,cardId:oldCard});
   }
 })();
+</script>
 </script>
 </body>
 </html>
