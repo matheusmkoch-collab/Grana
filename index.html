@@ -396,6 +396,7 @@ html, body {
 .qa-amt { text-align: center; margin-bottom: 4px; }
 .qa-amt input { text-align: center; font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="root">
@@ -1045,6 +1046,116 @@ if(S.user){
   checkStandalone();
 }
 reconcileFromIDB();
+</script>
+<script>
+// ═══════════════ SUPABASE FAMILY SYNC ═══════════════
+(function(){
+  const URL='https://ltrnhzzopqnrrbrkqyhb.supabase.co';
+  const KEY='sb_publishable_PoLwWotDyxWkC1c6yqvx9A_1S9DOfMG';
+  if(!window.supabase){console.warn('Grana: supabase-js não carregou');return;}
+  const sb=window.supabase.createClient(URL,KEY);
+
+  const devId=()=>{let i=localStorage.getItem('grana_device_id');if(!i){i='dev_'+Math.random().toString(36).slice(2,10);localStorage.setItem('grana_device_id',i);}return i;};
+
+  async function sbCreate(code){
+    const {error}=await sb.from('sessions').insert({code});
+    if(error && !error.message.includes('duplicate')) throw error;
+    await sb.from('members').upsert({session_code:code,device_id:devId(),user_name:S.user?.name||'Eu'},{onConflict:'session_code,device_id'});
+  }
+  async function sbJoin(code){
+    const {data,error}=await sb.from('sessions').select('code').eq('code',code).maybeSingle();
+    if(error) throw error;
+    if(!data) throw new Error('Sessão não encontrada — confere o código');
+    await sb.from('members').upsert({session_code:code,device_id:devId(),user_name:S.user?.name||'Eu'},{onConflict:'session_code,device_id'});
+  }
+  async function sbPush(){
+    if(!S.familySession) return 0;
+    const d=devId();
+    const rows=(S.transactions||[]).filter(t=>!t._partner).map(t=>{
+      const c=(S.cards||[]).find(x=>x.id===t.cardId);
+      return{id:t.id,session_code:S.familySession,device_id:d,card_name:c?.name||'Cartão',name:t.name,amount:Number(t.amount)||0,date:t.date,month_idx:t.monthIdx,cat:t.cat,parc:!!t.parc};
+    });
+    if(!rows.length) return 0;
+    const {error}=await sb.from('transactions').upsert(rows,{onConflict:'id'});
+    if(error) throw error;
+    return rows.length;
+  }
+  async function sbPull(){
+    if(!S.familySession) return [];
+    const {data,error}=await sb.from('transactions').select('*').eq('session_code',S.familySession).neq('device_id',devId());
+    if(error) throw error;
+    return (data||[]).map(r=>({id:r.id,name:r.name,amount:Number(r.amount),date:r.date,monthIdx:r.month_idx,cat:r.cat,parc:r.parc,cardId:null,_partner:true,_partnerCard:r.card_name,_partnerDevice:r.device_id}));
+  }
+  async function syncNow(){
+    if(!S.familySession) return {ok:false,reason:'sem_sessao'};
+    try{
+      const sent=await sbPush();
+      const rec=await sbPull();
+      const mine=(S.transactions||[]).filter(t=>!t._partner);
+      S.transactions=[...mine,...rec];
+      save();
+      return {ok:true,sent,received:rec.length};
+    }catch(e){console.error(e);return{ok:false,reason:e.message};}
+  }
+  window.syncFamilyNow=async function(ev){
+    const btn=ev?.target;
+    if(btn){btn.disabled=true;const o=btn.textContent;btn.textContent='Sincronizando...';
+      const r=await syncNow();
+      btn.disabled=false;btn.textContent=o;
+      if(r.ok){alert('✓ Sincronizado\n\nEnviei: '+r.sent+'\nRecebi: '+r.received);render();}
+      else alert('Erro: '+r.reason);
+    }else{await syncNow();render();}
+  };
+
+  const _oldJoin=window.joinSess;
+  window.joinSess=async function(){
+    const code=document.getElementById('sCode')?.value.trim().toUpperCase();
+    if(!code||!code.startsWith('GRANA-')){alert('Código inválido. Formato: GRANA-XXXX');return;}
+    const btn=document.querySelector('#modal .btn-p');
+    if(btn){btn.disabled=true;btn.textContent='Entrando...';}
+    try{
+      await sbJoin(code);
+      S.familySession=code;
+      save();closeModal();goTo('familia');
+      await syncNow();render();
+    }catch(e){
+      alert('Erro: '+e.message);
+      if(btn){btn.disabled=false;btn.textContent='Entrar';}
+    }
+  };
+
+  const _oldOpen=window.openModal;
+  window.openModal=function(type,param){
+    _oldOpen(type,param);
+    if(type==='createFamily'){
+      setTimeout(()=>{
+        const btn=document.querySelector('#modal .btn-p');
+        const codeEl=document.querySelector('#modal .code-d');
+        if(!btn||!codeEl) return;
+        const code=codeEl.textContent.trim();
+        btn.onclick=async()=>{
+          btn.disabled=true;btn.textContent='Criando...';
+          try{
+            await sbCreate(code);
+            S.familySession=code;save();closeModal();goTo('familia');
+          }catch(e){alert('Erro ao criar: '+e.message);btn.disabled=false;btn.textContent='Ativar sessão';}
+        };
+      },60);
+    }
+  };
+
+  const _oldRender=window.renderFamilia;
+  window.renderFamilia=function(){
+    const html=_oldRender();
+    if(!S.familySession) return html;
+    return html.replace(
+      '<button class="btn btn-d" onclick="S.familySession=null;save();render()">Sair da sessão</button>',
+      '<button class="btn btn-p" style="margin-bottom:9px" onclick="syncFamilyNow(event)">🔄 Sincronizar agora</button><button class="btn btn-d" onclick="if(confirm(\'Sair da sessão? Os gastos da parceira serão removidos deste aparelho.\')){S.familySession=null;S.transactions=(S.transactions||[]).filter(t=>!t._partner);save();render();}">Sair da sessão</button>'
+    );
+  };
+
+  setTimeout(()=>{if(S.familySession)syncNow().then(r=>{if(r.ok)render();});},800);
+})();
 </script>
 </body>
 </html>
