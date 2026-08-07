@@ -1354,9 +1354,6 @@ reconcileFromIDB();
     const n=parseFloat(String(amt||'0').replace(',','.'))||0;
     return Math.round(n*100);
   }
-  function isFromAutomation(){
-    return new URLSearchParams(location.search).get('add')==='1';
-  }
 
   function buildQuickAddHtml(param){
     const amt=param?.amt||'', desc=param?.desc||'', cardId=param?.cardId||S.cards[0]?.id;
@@ -1382,6 +1379,7 @@ reconcileFromIDB();
   const _oldOpenModalQA=window.openModal;
   window.openModal=function(type,param){
     if(type==='quickAdd'){
+      document.getElementById('modal')?.remove();
       const ov=document.createElement('div');ov.className='mo';ov.id='modal';ov.onclick=e=>{if(e.target===ov)closeModal();};
       ov.innerHTML=`<div class="mo-b">${buildQuickAddHtml(param)}</div>`;
       document.body.appendChild(ov);
@@ -1409,7 +1407,7 @@ reconcileFromIDB();
     if(!catId){alert('Escolhe uma categoria.');return;}
     logExpense(amt,desc,cardId,catId);
     closeModal();
-    if(isFromAutomation()){
+    if(window.__qaFromAutomation){
       showSavedScreen(amt,desc,catId);
     } else {
       render();
@@ -1426,24 +1424,18 @@ reconcileFromIDB();
       <div style="font-size:14px;color:var(--muted2);margin-bottom:22px">${c.emoji} ${c.name} · ${fmt(amt)}${desc?' · '+desc:''}</div>
       <a href="${granaBaseUrl()}" class="btn btn-p" style="text-decoration:none;max-width:320px">Visualizar contas</a>
     </div>`;
-   document.getElementById('nav').style.display='none';
+    document.getElementById('nav').style.display='none';
     document.getElementById('fab').style.display='none';
   }
 
-  // Se o link da automação já abriu o modal antigo antes desse script carregar, fecha e reabre com a versão nova.
-  if(isFromAutomation()){
-    document.getElementById('modal')?.remove();
-    const p=new URLSearchParams(location.search);
-    const amt=(p.get('amt')||'').trim();
-    const desc=(p.get('desc')||'').trim();
-    const cardHint=(p.get('card')||'').trim();
-    let cardId=S.cards[0]?.id;
-    if(cardHint){
-      const hintLow=cardHint.toLowerCase();
-      const match=S.cards.find(c=>c.name.toLowerCase().includes(hintLow)||hintLow.includes(c.name.toLowerCase()));
-      if(match) cardId=match.id;
-    }
-    openModal('quickAdd',{amt,desc,cardId});
+  const oldModal=document.getElementById('modal');
+  if(oldModal){
+    const oldAmt=oldModal.querySelector('#qaAmt')?.value||'';
+    const oldDesc=oldModal.querySelector('#qaDesc')?.value||'';
+    const oldCard=oldModal.querySelector('#qaCardR .csl.sel')?.dataset.card||S.cards[0]?.id;
+    oldModal.remove();
+    window.__qaFromAutomation=true;
+    openModal('quickAdd',{amt:oldAmt,desc:oldDesc,cardId:oldCard});
   }
 })();
 </script>
