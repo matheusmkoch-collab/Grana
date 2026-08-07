@@ -1577,5 +1577,80 @@ reconcileFromIDB();
   },{passive:true});
 })();
 </script>
+  <script>
+// ═══════════════ FILTROS E ORDENAÇÃO EM GASTOS ═══════════════
+(function(){
+  window.__gastosFilterCats = null; // null = todas selecionadas
+  window.__gastosSort = 'valor'; // 'valor' | 'alfabetica'
+
+  function gastosFilterBar(){
+    const activeCount = window.__gastosFilterCats ? window.__gastosFilterCats.length : 0;
+    return '<div class="sec" style="padding-top:0;padding-bottom:8px;display:flex;gap:8px">'
+      + '<button onclick="openGastosFilterModal()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;-webkit-appearance:none">🔎 Filtrar'+(activeCount?' ('+activeCount+')':'')+'</button>'
+      + '<button onclick="toggleGastosSort()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:9px;font-size:12px;color:var(--text);cursor:pointer;-webkit-appearance:none">↕ '+(window.__gastosSort==='valor'?'Maior gasto':'A-Z')+'</button>'
+      + '</div>';
+  }
+
+  window.toggleGastosSort=function(){
+    window.__gastosSort = window.__gastosSort==='valor' ? 'alfabetica' : 'valor';
+    render();
+  };
+
+  window.openGastosFilterModal=function(){
+    document.getElementById('modal')?.remove();
+    const selected = window.__gastosFilterCats;
+    const ov=document.createElement('div');ov.className='mo';ov.id='modal';ov.onclick=e=>{if(e.target===ov)closeModal();};
+    const rows = S.categories.map(c=>{
+      const checked = !selected || selected.includes(c.id);
+      return '<div class="cat-li" onclick="toggleGastosFilterCat(\''+c.id+'\')" style="cursor:pointer">'
+        + '<div style="width:20px;height:20px;border-radius:6px;border:2px solid '+(checked?'var(--accent)':'var(--border2)')+';background:'+(checked?'var(--ad)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;color:var(--accent)">'+(checked?'✓':'')+'</div>'
+        + '<div style="font-size:17px">'+c.emoji+'</div>'
+        + '<div style="font-size:13px;font-weight:500;flex:1">'+c.name+'</div>'
+        + '</div>';
+    }).join('');
+    ov.innerHTML='<div class="mo-b"><div class="mo-h"></div><div class="mo-t">Filtrar categorias</div>'
+      + '<div style="display:flex;gap:14px;margin-bottom:12px">'
+      + '<button class="btn-gh" style="padding:6px 0" onclick="setGastosFilterAll()">Selecionar todas</button>'
+      + '<button class="btn-gh" style="padding:6px 0" onclick="setGastosFilterNone()">Limpar</button>'
+      + '</div>'
+      + rows
+      + '<button class="btn btn-p" style="margin-top:12px" onclick="closeModal();render()">Aplicar</button></div>';
+    document.body.appendChild(ov);
+  };
+
+  window.toggleGastosFilterCat=function(catId){
+    let sel = window.__gastosFilterCats;
+    if(!sel) sel = S.categories.map(c=>c.id);
+    if(sel.includes(catId)){ sel = sel.filter(id=>id!==catId); }
+    else{ sel = [...sel, catId]; }
+    window.__gastosFilterCats = sel.length===S.categories.length ? null : sel;
+    openGastosFilterModal();
+  };
+  window.setGastosFilterAll=function(){ window.__gastosFilterCats=null; openGastosFilterModal(); };
+  window.setGastosFilterNone=function(){ window.__gastosFilterCats=[]; openGastosFilterModal(); };
+
+  window.renderGastos=function(){
+    const m=S.activeMonth;
+    let txs=gTxs(m);
+    if(window.__gastosFilterCats) txs=txs.filter(t=>window.__gastosFilterCats.includes(t.cat));
+    const total=txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+    const byCat={};
+    for(const tx of txs){ if(!byCat[tx.cat]) byCat[tx.cat]=[]; byCat[tx.cat].push(tx); }
+    let entries=Object.entries(byCat);
+    if(window.__gastosSort==='alfabetica'){
+      entries=entries.sort((a,b)=>gCat(a[0]).name.localeCompare(gCat(b[0]).name));
+    }else{
+      entries=entries.sort((a,b)=>b[1].reduce((s,t)=>s+t.amount,0)-a[1].reduce((s,t)=>s+t.amount,0));
+    }
+    if(!txs.length){
+      return '<div class="page"><div class="sec"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><div class="lbl">'+MO[m]+'</div>'+mCtrl()+'</div></div>'+gastosFilterBar()+'<div class="emp"><div class="emp-i">📭</div><div class="emp-t">Nenhum gasto com esse filtro</div><div class="emp-s">Ajusta o filtro ou muda de mês.</div></div></div>';
+    }
+    return '<div class="page"><div class="sec"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div><div class="lbl" style="margin-bottom:3px">'+MO[m]+'</div><div style="font-family:\'Syne\',sans-serif;font-size:24px;font-weight:800">'+fmt(total)+'</div></div>'+mCtrl()+'</div></div>'+gastosFilterBar()+entries.map(function(e){
+      const cid=e[0],tl=e[1];const c=gCat(cid);const ct=tl.reduce((s,t)=>s+t.amount,0);
+      return '<div class="sec" style="padding-top:0;padding-bottom:0"><div class="grp"><span>'+c.emoji+' '+c.name+'</span><span style="color:'+c.color+'">'+fmt(ct)+'</span></div>'+tl.map(t=>txRow(t,S.cards.length>1)).join('')+'</div>';
+    }).join('<div style="height:4px"></div>')+'<div style="height:8px"></div></div>';
+  };
+})();
+</script>
 </body>
 </html>
