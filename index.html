@@ -1562,16 +1562,12 @@ reconcileFromIDB();
       indicator.style.opacity=Math.min(pull/50,1);
       indicator.style.transform='translateX(-50%) scale('+(.8+Math.min(pull/70,1)*.2)+')';
       indicator.textContent = dy>70 ? '↑ solte para atualizar' : '↓ puxe para atualizar';
-      screen.style.transform='translateY('+(pull*0.4)+'px)';
     }
   },{passive:false});
   screen.addEventListener('touchend',(e)=>{
     if(!pulling) return;
     const dy=(e.changedTouches[0].clientY-startY);
     pulling=false;
-    screen.style.transition='transform .2s';
-    screen.style.transform='';
-    setTimeout(()=>{screen.style.transition='';},200);
     if(dragging && dy>70){
       indicator.textContent='Atualizando...';
       indicator.style.opacity=1;
