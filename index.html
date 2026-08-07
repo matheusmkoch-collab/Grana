@@ -399,6 +399,7 @@ html, body {
 .qa-amt input { text-align: center; font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.__qaFromAutomation=new URLSearchParams(location.search).get('add')==='1';</script>
 </head>
 <body>
 <div id="root">
@@ -1434,7 +1435,6 @@ reconcileFromIDB();
     const oldDesc=oldModal.querySelector('#qaDesc')?.value||'';
     const oldCard=oldModal.querySelector('#qaCardR .csl.sel')?.dataset.card||S.cards[0]?.id;
     oldModal.remove();
-    window.__qaFromAutomation=true;
     openModal('quickAdd',{amt:oldAmt,desc:oldDesc,cardId:oldCard});
   }
 })();
