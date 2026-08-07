@@ -1507,15 +1507,16 @@ reconcileFromIDB();
   const screen=document.getElementById('screen');
   if(!screen) return;
 
-  function lastSyncText(){
-    const t=parseInt(localStorage.getItem('grana_last_sync')||'0',10);
-    if(!t) return 'nunca atualizado';
-    const diff=Math.floor((Date.now()-t)/1000);
-    if(diff<10) return 'atualizado agora';
-    if(diff<60) return 'atualizado há '+diff+'s';
-    if(diff<3600) return 'atualizado há '+Math.floor(diff/60)+'min';
-    return 'atualizado há '+Math.floor(diff/3600)+'h';
-  }
+   function lastSyncText(){
+      const t=parseInt(localStorage.getItem('grana_last_sync')||'0',10);
+      const en=S.lang==='en';
+      if(!t) return en?'never updated':'nunca atualizado';
+      const diff=Math.floor((Date.now()-t)/1000);
+      if(diff<10) return en?'updated just now':'atualizado agora';
+      if(diff<60) return (en?'updated ':'atualizado há ')+diff+(en?'s ago':'s');
+      if(diff<3600) return (en?'updated ':'atualizado há ')+Math.floor(diff/60)+(en?'min ago':'min');
+      return (en?'updated ':'atualizado há ')+Math.floor(diff/3600)+(en?'h ago':'h');
+    }
   function markSynced(){ localStorage.setItem('grana_last_sync', String(Date.now())); updateBarText(); }
   function updateBarText(){ const el=document.getElementById('syncBarTxt'); if(el) el.textContent=lastSyncText(); }
 
@@ -1731,6 +1732,111 @@ reconcileFromIDB();
     }
     return html;
   };
+})();
+</script>
+  <script>
+// ═══════════════ TRADUÇÃO GERAL (EN) — observa a tela e traduz textos conhecidos ═══════════════
+(function(){
+  const EXACT = {
+    'Supermercado':'Supermarket','Restaurante':'Restaurant','Lazer':'Leisure','Assinatura':'Subscription',
+    'Moradia':'Housing','Transporte':'Transportation','Saúde':'Health','Viagem':'Travel',
+    'Eletrônicos':'Electronics','Educação':'Education','Impostos/IOF':'Taxes/IOF','Compras':'Shopping','Outros':'Other',
+    'Cancelar':'Cancel','Salvar':'Save','Criar':'Create','Entrar':'Join','Apagar':'Delete',
+    'Ativar sessão':'Activate session','Copiar':'Copy','Salvar e aprender':'Save and learn',
+    'Valor':'Amount','Descrição':'Description','Como foi pago':'Paid with','Categoria':'Category',
+    'Nome':'Name','Cor':'Color','Emoji':'Emoji','Palavras-chave':'Keywords','Tipo':'Type',
+    'Banco (opcional)':'Bank (optional)','Código':'Code','Seu nome':'Your name',
+    'Novo gasto':'New expense','⚡ Novo gasto':'⚡ New expense',
+    'Nova forma de pagamento':'New payment method','Nova categoria':'New category',
+    'Editar transação':'Edit transaction','Editar forma de pagamento':'Edit payment method',
+    'Editar nome':'Edit name','Criar sessão familiar':'Create family session','Entrar com código':'Enter with code',
+    'Filtrar categorias':'Filter categories','Selecionar todas':'Select all','Limpar':'Clear','Aplicar':'Apply',
+    '+ Novo':'+ New','+ Nova':'+ New',
+    'Gasto salvo':'Expense saved',
+    'Formas de pagamento':'Payment methods','Categorias':'Categories','Moeda':'Currency','Backup':'Backup','Conta':'Account',
+    'Editar':'Edit','Apagar todos os dados':'Delete all data',
+    'Baixar backup':'Download backup','Restaurar de um backup':'Restore from backup',
+    'Sair da sessão':'Leave session','Ativo':'Active','CÓDIGO':'CODE','(você)':'(you)',
+    'Parceira':'Partner','aguardando sync':'awaiting sync',
+    'Sessão Família':'Family Session','Como funciona':'How it works','Análise':'Analysis',
+    'ESTE MÊS':'THIS MONTH','MÉDIA':'AVERAGE','VARIAÇÃO':'VARIATION',
+    'TRANSAÇÕES':'TRANSACTIONS','PARCELAS':'INSTALLMENTS','Evolução':'Trend','Por categoria':'By category',
+    'categorias':'categories','Por forma de pagamento':'By payment method','Assinaturas':'Subscriptions',
+    'Recentes':'Recent','Ver tudo →':'See all →','+ Adicionar gasto':'+ Add expense',
+    'Configurar automação →':'Set up automation →','+ Adicionar gasto manualmente':'+ Add expense manually'
+  };
+
+  const PARTIAL = [
+    ['🔄 Sincronizar agora','🔄 Sync now'],
+    ['Sincronizar agora','Sync now'],
+    ['Filtrar','Filter'],
+    ['Maior gasto','Biggest expense'],
+    ['+ Adicionar','+ Add'],
+    ['% vs média (','% vs average ('],
+    ['Sem dados em ','No data in '],
+    ['Navegue entre meses ou registre um gasto.','Browse other months or log an expense.'],
+    ['Registre seu primeiro gasto','Log your first expense'],
+    ['Pague no Apple Pay e o Grana abre sozinho — ou adicione na mão agora.','Pay with Apple Pay and Grana opens on its own — or add one manually now.'],
+    ['Sem gastos em ','No expenses in '],
+    ['Nenhum gasto com esse filtro','No expenses with this filter'],
+    ['Ajusta o filtro ou muda de mês.','Adjust the filter or change month.'],
+    ['Parcelas: ','Installments: '],
+    ['% do mês','% of the month'],
+    ['em compras parceladas.','in installment purchases.'],
+    ['Assinaturas: ','Subscriptions: '],
+    ['/mês','/month'],
+    ['% acima da média','% above average'],
+    ['% abaixo da média','% below average'],
+    ['Média: ','Average: '],
+    [' · Este mês: ',' · This month: '],
+    [' regras aprendidas',' rules learned'],
+    [' regra aprendida',' rule learned'],
+    ['Reconhece: ','Recognizes: '],
+    ['Importe mais meses','Import more months'],
+    ['Com 2+ meses você vê tendências e comparativos automáticos.','With 2+ months you’ll see automatic trends and comparisons.'],
+    ['Nada para analisar','Nothing to analyze'],
+    ['Registre pelo menos um gasto.','Log at least one expense.'],
+    ['Veja os gastos do casal consolidados.','See the couple’s combined expenses.'],
+    ['Cada um usa o próprio celular.','Each person uses their own phone.'],
+    ['Um cria, o outro entra','One creates, the other joins'],
+    ['Gera um código. A parceira digita no app dela.','Generates a code. Your partner enters it in their app.'],
+    ['Visão consolidada','Combined view'],
+    ['Total do casal, categorias e meses.','Couple’s total, categories and months.'],
+    ['Dados locais','Local data'],
+    ['Sync via backend quando configurado.','Synced via backend once set up.'],
+    ['Família · ','Family · '],
+    [' transações',' transactions'],
+    ['Nenhuma ainda — crie aqui, ou o Grana cria automaticamente na primeira vez que a automação reconhecer um cartão da Wallet.','None yet — create one here, or Grana creates it automatically the first time the automation recognizes a Wallet card.'],
+    ['Além de guardar automaticamente em dois lugares no aparelho, você pode baixar uma cópia de tudo pra guardar por fora quando quiser.','Besides saving automatically in two places on the device, you can download a full copy to keep elsewhere whenever you want.'],
+    ['Dólar','Dollar'],
+    ['Libra','Pound']
+  ];
+
+  let translating=false;
+  function translateNode(root){
+    if(S.lang!=='en' || !root) return;
+    const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(n=>{
+      let txt=n.textContent;
+      const trimmed=txt.trim();
+      if(EXACT[trimmed]!==undefined) txt=txt.replace(trimmed,EXACT[trimmed]);
+      for(const pair of PARTIAL){
+        if(txt.indexOf(pair[0])!==-1) txt=txt.split(pair[0]).join(pair[1]);
+      }
+      if(txt!==n.textContent) n.textContent=txt;
+    });
+  }
+  function translateAll(){
+    if(S.lang!=='en' || translating) return;
+    translating=true;
+    translateNode(document.body);
+    translating=false;
+  }
+
+  const mo=new MutationObserver(()=>{ if(!translating) requestAnimationFrame(translateAll); });
+  mo.observe(document.body,{childList:true,subtree:true,characterData:true});
+  translateAll();
 })();
 </script>
 </body>
