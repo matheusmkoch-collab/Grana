@@ -515,7 +515,6 @@ const CUR={
   USD:{symbol:'$',locale:'en-US',name:'Dólar'},
   EUR:{symbol:'€',locale:'de-DE',name:'Euro'},
   GBP:{symbol:'£',locale:'en-GB',name:'Libra'},
-  ARS:{symbol:'$',locale:'es-AR',name:'Peso arg.'},
 };
 
 // ── STATE ──
@@ -1649,6 +1648,88 @@ reconcileFromIDB();
       const cid=e[0],tl=e[1];const c=gCat(cid);const ct=tl.reduce((s,t)=>s+t.amount,0);
       return '<div class="sec" style="padding-top:0;padding-bottom:0"><div class="grp"><span>'+c.emoji+' '+c.name+'</span><span style="color:'+c.color+'">'+fmt(ct)+'</span></div>'+tl.map(t=>txRow(t,S.cards.length>1)).join('')+'</div>';
     }).join('<div style="height:4px"></div>')+'<div style="height:8px"></div></div>';
+  };
+})();
+</script>
+  <script>
+// ═══════════════ IDIOMA (base: categorias, meses, menu, saudação, seletor) ═══════════════
+(function(){
+  const CAT_NAME_EN = {
+    supermercado:'Supermarket', restaurante:'Restaurant', lazer:'Leisure', assinatura:'Subscription',
+    moradia:'Housing', transporte:'Transportation', saude:'Health', viagem:'Travel',
+    eletronicos:'Electronics', educacao:'Education', iof:'Taxes/IOF', compras:'Shopping', outros:'Other'
+  };
+  const MO_PT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const MO_EN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const NAV_PT={home:'Home',gastos:'Gastos',analise:'Análise',familia:'Família',mais:'Configurar'};
+  const NAV_EN={home:'Home',gastos:'Expenses',analise:'Analysis',familia:'Family',mais:'Settings'};
+
+  if(!S.lang) S.lang='pt';
+  try{ const d=JSON.parse(localStorage.getItem('grana_v4')||'{}'); if(d.lang) S.lang=d.lang; }catch(e){}
+
+  const _oldSnapshot=window.snapshot;
+  window.snapshot=function(){ const s=_oldSnapshot(); s.lang=S.lang; return s; };
+  const _oldLoad=window.load;
+  window.load=function(){
+    _oldLoad();
+    try{ const d=JSON.parse(localStorage.getItem('grana_v4')||'{}'); if(d.lang) S.lang=d.lang; }catch(e){}
+  };
+
+  function applyMonths(){
+    const src = S.lang==='en' ? MO_EN : MO_PT;
+    for(let i=0;i<12;i++) MO[i]=src[i];
+  }
+  applyMonths();
+
+  const NAV_KEYS=['home','gastos','analise','familia','mais'];
+  function applyNav(){
+    const map = S.lang==='en' ? NAV_EN : NAV_PT;
+    NAV_KEYS.forEach(k=>{
+      const btn=document.getElementById('ni-'+k);
+      if(!btn) return;
+      const nodes=btn.childNodes;
+      const last=nodes[nodes.length-1];
+      if(last && last.nodeType===3) last.textContent=map[k];
+    });
+  }
+  applyNav();
+
+  window.setLang=function(lang){
+    if(lang!=='pt' && lang!=='en') return;
+    S.lang=lang;
+    applyMonths();
+    applyNav();
+    save();
+    render();
+  };
+
+  const _oldGCat=window.gCat;
+  window.gCat=function(id){
+    const c=_oldGCat(id);
+    if(S.lang==='en' && CAT_NAME_EN[c.id]) return Object.assign({},c,{name:CAT_NAME_EN[c.id]});
+    return c;
+  };
+
+  const _oldGoToLang=window.goTo;
+  window.goTo=function(page){ _oldGoToLang(page); applyNav(); };
+
+  const _oldRenderMaisLang=window.renderMais;
+  window.renderMais=function(){
+    let html=_oldRenderMaisLang();
+    const picker='<div class="sec"><div class="sec-title">'+(S.lang==='en'?'Language':'Idioma')+'</div><div class="csl-r">'
+      +'<div class="csl '+(S.lang==='pt'?'sel':'')+'" onclick="setLang(\'pt\')">🇧🇷 Português</div>'
+      +'<div class="csl '+(S.lang==='en'?'sel':'')+'" onclick="setLang(\'en\')">🇺🇸 English</div>'
+      +'</div></div>';
+    return html.replace('<div class="sec"><div class="sec-title">Moeda</div>', picker+'<div class="sec"><div class="sec-title">Moeda</div>');
+  };
+
+  const _oldRenderHomeLang=window.renderHome;
+  window.renderHome=function(){
+    let html=_oldRenderHomeLang();
+    if(S.lang==='en'){
+      html=html.replace('Bom dia','Good morning').replace('Boa tarde','Good afternoon').replace('Boa noite','Good evening');
+    }
+    return html;
   };
 })();
 </script>
