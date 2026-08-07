@@ -1300,5 +1300,43 @@ reconcileFromIDB();
   };
 })();
 </script>
+<script>
+// ═══════════════ NOME DE QUEM GASTOU (família) ═══════════════
+(function(){
+  const URL='https://ltrnhzzopqnrrbrkqyhb.supabase.co';
+  const KEY='sb_publishable_PoLwWotDyxWkC1c6yqvx9A_1S9DOfMG';
+  if(!window.supabase){console.warn('Grana: supabase-js não carregou (nome família)');return;}
+  const sb2=window.supabase.createClient(URL,KEY);
+
+  async function pullMemberNames(){
+    if(!S.familySession) return;
+    try{
+      const {data,error}=await sb2.from('members').select('device_id,user_name').eq('session_code',S.familySession);
+      if(error) throw error;
+      S.familyMembers={};
+      (data||[]).forEach(m=>{S.familyMembers[m.device_id]=m.user_name||'Parceiro(a)';});
+      render();
+    }catch(e){console.error('Grana: falha ao buscar nomes da família',e);}
+  }
+
+  const _oldSyncFamilyNow=window.syncFamilyNow;
+  window.syncFamilyNow=async function(){
+    const r=await _oldSyncFamilyNow.apply(this,arguments);
+    await pullMemberNames();
+    return r;
+  };
+  setTimeout(()=>{if(S.familySession)pullMemberNames();},900);
+
+  // ─── Patch txRow: injeta nome de quem gastou ───
+  const _oldTxRow=window.txRow;
+  window.txRow=function(tx,sc){
+    let html=_oldTxRow(tx,sc);
+    if(!S.familySession) return html;
+    const owner=tx._partner?(S.familyMembers?.[tx._partnerDevice]||'Parceiro(a)'):(S.user?.name||'Você');
+    html=html.replace('<span class="tx-date">'+tx.date+'</span>','<span class="tx-date">'+tx.date+'</span><span class="tx-badge" style="color:var(--accent);background:var(--ad)">'+owner+'</span>');
+    return html;
+  };
+})();
+</script>
 </body>
 </html>
